@@ -18,7 +18,7 @@ def gen_preamble(author = 'GK', gen_time=time.ctime()):
     sys.stdout.write('\n! Author: {0}\n'.format(author))
 
 def print_mptemp(temp_list, command='MPTEMP', max_entries=6, max_ntemp=100,
-                 fmt='{:.2f}'):
+                 fmt='{0:.2f}'):
     """Print temperatures in accordance to MPTEMP command to stdout
     
     Args:
@@ -39,12 +39,13 @@ def print_mptemp(temp_list, command='MPTEMP', max_entries=6, max_ntemp=100,
     
     for val, ix in zip(temp_list, range(len(temp_list))):
         if ix % max_entries == 0:
-            sys.stdout.write('\n{0},{1}, {2:.2f}'.format(command, ix+1, val))
+            sys.stdout.write('\n{0},{1}, {2}'.format(command, ix+1, fmt).
+                                              format(val))
         else:
-             sys.stdout.write(', {0:.2f}'.format(val))
+             sys.stdout.write(', '+fmt.format(val))
                 
 def print_mpdata(data_list, lab, mat=1, command='MPDATA', max_entries=6, 
-                 max_ndata=100, fmt='{:.3E}'):
+                 max_ndata=100, fmt='{0:.3E}'):
     """Print linear temperature-dependent material property to stdout
     
     Args:
@@ -65,13 +66,14 @@ def print_mpdata(data_list, lab, mat=1, command='MPDATA', max_entries=6,
     
     for val, ix in zip(data_list, range(len(data_list))):
         if ix % max_entries == 0:
-            sys.stdout.write('\n{0},{1},{2},{3}, {4:.3E}'.
-                             format(command, lab, mat, ix+1, val))
+            sys.stdout.write('\n{0},{1},{2},{3}, {4}'.
+                             format(command, lab, mat, ix+1, fmt).
+                             format(val))
         else:
-             sys.stdout.write(', {0:.3E}'.format(val))
+             sys.stdout.write(', '+fmt.format(val))
                 
 def print_tb(temp_list, tbpt_list, mat=1, lab='KINH', tbopt=0,
-             temp_fmt='{:.2f}', data_fmt='{:.3E}'):
+             temp_fmt='{0:.2f}', data_fmt='{0:.5E}'):
     """Print material data in ANSYS TB/TBPT command format
 
     Args:
@@ -105,8 +107,7 @@ def print_tb(temp_list, tbpt_list, mat=1, lab='KINH', tbopt=0,
         elif tbopt == 4:
             max_ntemp = 20
             max_npts = 100
-
-    if lab == 'PLASTIC' and (tbopt == 'KINH' or tbopt == 'MISO'):
+    if lab == 'MISO' or 'PLASTIC':
         max_ntemp = 20
         max_npts = 100
 
@@ -121,10 +122,11 @@ def print_tb(temp_list, tbpt_list, mat=1, lab='KINH', tbopt=0,
                      format(lab, mat, ntemp, npts, tbopt))
 
     for temp, tix in zip(temp_list, range(len(temp_list))):
-        sys.stdout.write('\nTBTEMP,{0:.2f}'.format(temp))
+        sys.stdout.write('\nTBTEMP,'+temp_fmt.format(temp))
         
         for x1, x2 in zip(tbpt_list[tix, : ,0], tbpt_list[tix, :, 1]):
-            sys.stdout.write('\nTBPT,, {0:10.3E}, {1:12.5E}'.format(x1, x2))
+            sys.stdout.write('\nTBPT,, {0}, {1}'.
+                    format(data_fmt, data_fmt).format(x1, x2))
     print
 
 if __name__ == '__main__':
@@ -139,9 +141,10 @@ if __name__ == '__main__':
     #print_tb('PLASTIC', 1, 'KINH', temp, tb_pt)
     print_tb(temp, tb_pt)
     
-    # how to pass fmt to print() ? XXX
-    fmt='{:10.3E}'
-    print('a = {0:.2f} b = '+fmt.format(100000, 200000))
+    # pass fmt to print()
+    fmt='{0:.3f}'
+    fmt2 = '{0:.5f}'
+    print('a = {0} b = {1}'.format(fmt, fmt2).format(3, 5))
 
     # slice and dice
     a = np.arange(36).reshape(3,2,6)
