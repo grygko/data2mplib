@@ -1,5 +1,5 @@
 # Author: Grygoriy Kravchenko
-# Date: 2013-01-14
+# Date: 2013-01-24
 
 """Produce text output for generating ANSYS APDL scripts
 """
@@ -24,18 +24,15 @@ def print_mptemp(temp_list, command='MPTEMP', max_entries=6, max_ntemp=100,
     Args:
         temp_list (list): 1D list with temperature values
         command (string): APDL command
-        max_entries (int): max number of the property entries on on line
+        max_entries (int): max number of the property entries on one line
         max_ntemp (int): max number of temperatures
-        fmt (str): string formatter. How to pass it XXX
+        fmt (str): string formatter. How to pass it? XXX
 
     Command syntax:
         MPTEMP, STLOC, T1, T2, T3, T4, T5, T6
-        MPDATA, Lab, MAT, STLOC, C1, C2, C3, C4, C5, C6
 
     Example:
-
-        MPTEMP,1,0,250,500               ! Define temperature-dependent EX
-        MPDATA,EX,1,,14.665E6,13.839e6,12.423e6           
+        MPTEMP,1,0,250,500      ! define temperatures: 0, 250, 500
     """
     
     temp_list = temp_list[:max_ntemp] # cut off exceeding temperatures
@@ -46,60 +43,79 @@ def print_mptemp(temp_list, command='MPTEMP', max_entries=6, max_ntemp=100,
         else:
              sys.stdout.write(', {0:.2f}'.format(val))
                 
-def print_mpdata(data_list, lab, command='MPDATA', max_entries=6, 
+def print_mpdata(data_list, lab, mat=1, command='MPDATA', max_entries=6, 
                  max_ndata=100, fmt='{:.3E}'):
-    """Print linear temperature-dependant material property to stdout
+    """Print linear temperature-dependent material property to stdout
     
     Args:
         data_list (list): 1D data list
         lab (string): valid ANSYS APDL property label
-        command (string): APDL command
-        max_entries (int): max number of the property entries on on line
-        fmt (str): string formatter. How to pass it XXX
+        mat (int/string): material number or variable name
+        command (string): a valid APDL command
+        max_entries (int): max number of the property entries on one line
+        fmt (str): string formatter. How to pass it? XXX
 
-    The function prints in ANSYS APDL format convenient for e.g., 
-    saving to files
+    Command syntax:
+        MPDATA, Lab, MAT, STLOC, C1, C2, C3, C4, C5, C6
+    Example:
+        MPDATA,EX,1,,14.0e6,13.0e6,12.0e6   ! define temp-dependent EX
     """
     
     data_list = data_list[:max_ndata] # cut off exceeding data elements
     
     for val, ix in zip(data_list, range(len(data_list))):
         if ix % max_entries == 0:
-            sys.stdout.write('\n{0},{1},{2}, {3:.3E}'.
-                             format(command, lab, ix+1, val))
+            sys.stdout.write('\n{0},{1},{2},{3}, {4:.3E}'.
+                             format(command, lab, mat, ix+1, val))
         else:
              sys.stdout.write(', {0:.3E}'.format(val))
                 
-def print_tb(lab, mat, tbopt, temp_list, tbpt_list, max_npts=100,
-             max_ntemp=20, temp_fmt='{:.2f}', data_fmt='{:.3E}'):
-    """
+def print_tb(temp_list, tbpt_list, mat=1, lab='KINH', tbopt=0,
+             temp_fmt='{:.2f}', data_fmt='{:.3E}'):
+    """Print material data in ANSYS TB/TBPT command format
+
     Args:
-        lab (string): material model label e.g. PLASTIC
-        tbopt (string): material model option
-        temp_list (list): list of temperatures. Must correspond to first
-            dimension of tbpt_list
-        tbpt_list (list): ntemp x N x 2 list containing data points. 
-            Will be cut-off for ntemp > max_npts
-        max_ntemp (int): max number of temperature points
-        max_npts (int): max number of data points
+        temp_list (list): list of temperatures in ascending order. Number of
+        defined temperatures must correspond to 1st dimension of `tbpt_list`
+        tbpt_list (list): ntemp x N x 2 list containing data points; will be 
+        cut off for `ntemp > max_npts`
+        mat (int/string): material number or variable name
+        lab (string): material model label e.g., KINH or PLASTIC
+        tbopt (int/string): material model option
 
     For description of arguments and structure of the printout see description
     of TB and TBPT commands in ANSYS APDL documentaion
     
     Command syntax:
         TB, Lab, MAT, NTEMP, NPTS, TBOPT
-    Example:
+    Examples:
         TB,PLASTIC,1,2,3,KINH
         TBTEMP,0.0               ! Temperature = 0.0
-        TBPT,,0,29.33E3          ! Plastic strain, stress at temperature = 0
+        TBPT,,0,29.33e3          ! Plastic strain, stress at temperature = 0
+
+        TB,KINH,1,2,3,0
+        TBTEMP,0.0
+        TBPT,,0.001,45e3        ! total strain, stress at TEMP=0.0
     """
+
+    if lab == 'KINH':
+        if tbopt == 0:
+            max_ntemp = 40
+            max_npts = 20
+        elif tbopt == 4:
+            max_ntemp = 20
+            max_npts = 100
+
+    if lab == 'PLASTIC' and (tbopt == 'KINH' or tbopt == 'MISO'):
+        max_ntemp = 20
+        max_npts = 100
 
     temp_list = np.asarray(temp_list, dtype=float)
     tbpt_list = np.asarray(tbpt_list, dtype=float)
     temp_list = temp_list[:max_ntemp] # cut-off exceeding elements
     tbpt_list = tbpt_list[:max_ntemp, :, :max_npts]
     ntemp = len(temp_list)
-    npts = len(tbpt_list)
+    npts = len(tbpt_list[0])
     
     sys.stdout.write('\nTB,{0},{1},{2},{3},{4}'.
                      format(lab, mat, ntemp, npts, tbopt))
@@ -107,20 +123,22 @@ def print_tb(lab, mat, tbopt, temp_list, tbpt_list, max_npts=100,
     for temp, tix in zip(temp_list, range(len(temp_list))):
         sys.stdout.write('\nTBTEMP,{0:.2f}'.format(temp))
         
-        for x1, x2 in zip(tbpt_list[tix][0], tbpt_list[tix][1]):
+        for x1, x2 in zip(tbpt_list[tix, : ,0], tbpt_list[tix, :, 1]):
             sys.stdout.write('\nTBPT,, {0:10.3E}, {1:12.5E}'.format(x1, x2))
+    print
 
 if __name__ == '__main__':
 
     gen_preamble()
     temp = np.linspace(300, 400, 10)
     ex = temp*1e3
-    tb_pt = np.arange(60).reshape(10,2,3)
+    tb_pt = np.arange(60).reshape(10,3,2)
 
     print_mptemp(temp)
     print_mpdata(ex, 'EX')
-    print_tb('PLASTIC', 1, 'KINH', temp, tb_pt)
-
+    #print_tb('PLASTIC', 1, 'KINH', temp, tb_pt)
+    print_tb(temp, tb_pt)
+    
     # how to pass fmt to print() ? XXX
     fmt='{:10.3E}'
     print('a = {0:.2f} b = '+fmt.format(100000, 200000))
